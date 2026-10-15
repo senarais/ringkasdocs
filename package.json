@@ -1,0 +1,14 @@
+{
+  "name": "ringkasdocs",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ringkas — unified integration docs for Shopee, TikTok Shop and Lazada",
+  "scripts": {
+    "crawl": "node scripts/crawl.mjs",
+    "serve": "node scripts/serve.mjs"
+  },
+  "dependencies": {
+    "marked": "^14.1.3"
+  }
+}
