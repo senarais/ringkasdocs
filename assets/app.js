@@ -116,7 +116,7 @@
     document.documentElement.style.setProperty('--plat', p.accent);
     document.documentElement.style.setProperty('--plat-2', p.accent2);
     document.documentElement.style.setProperty('--plat-ink', dark(p.accent) ? '#ffffff' : '#0b0b0b');
-    await renderDoc(p, r.page);
+    await renderDoc(p, r.page, $('#app').dataset.platform === p.id);
   }
 
   /* --------------------------------------------------------------- home */
@@ -174,49 +174,65 @@
     `<div class="fcard"><div class="k" style="background:${bg}">${icon(ic)}</div><h3>${t}</h3><p>${b}</p></div>`;
 
   /* --------------------------------------------------------------- doc view */
-  async function renderDoc(p, pageId) {
+  async function renderDoc(p, pageId, keepShell = false) {
     const app = $('#app');
-    app.innerHTML = `<div class="loading">Loading ${esc(p.name)} docs…</div>`;
     const leaf = findLeaf(p, pageId) || firstPage(p);
+    // Reuse the existing sidebar/layout when staying on the same platform, so the
+    // sidebar keeps its exact scroll position and expansion state — only the
+    // article, TOC and active highlight change.
+    const reuse = keepShell && app.dataset.platform === p.id && !!$('#sidebar');
+
+    if (!reuse) app.innerHTML = `<div class="loading">Loading ${esc(p.name)} docs…</div>`;
     const page = await loadPage(p.id, leaf.id);
     if (!page) {
-      app.innerHTML = `<div class="loading">Page not found.</div>`;
+      if (!reuse) app.innerHTML = `<div class="loading">Page not found.</div>`;
       return;
     }
 
-    app.innerHTML = `
-      <div class="layout">
-        <aside class="sidebar" id="sidebar"></aside>
-        <article class="article">
-          <nav class="crumb">${(page.breadcrumb || [p.name])
-            .map((c, i, a) => (i === a.length - 1 ? `<span class="here">${esc(c)}</span>` : `<span>${esc(c)}</span>`))
-            .join('<span class="sep">/</span>')}</nav>
-          <span class="labelchip">${icon(p.sections.find((s) => s.id === page.section)?.icon || 'book')} ${esc(
-      page.label || p.name
-    )}</span>
-          <h1 class="page-title">${esc(page.title)}</h1>
-          ${page.subtitle ? `<p class="page-sub">${esc(page.subtitle)}</p>` : ''}
-          <div class="meta-row">
-            ${(page.meta || [])
-              .map((m) =>
-                m.url
-                  ? `<a class="chip" href="${esc(m.url)}" target="_blank" rel="noopener">${icon('external')} ${esc(m.text)}</a>`
-                  : `<span class="chip k">${esc(m.text)}</span>`
-              )
-              .join('')}
-          </div>
-          <div class="prose" id="prose">${page.html || ''}</div>
-        </article>
-        <aside class="toc" id="toc"></aside>
-      </div>`;
+    if (reuse) {
+      setActiveNav(leaf.id);
+    } else {
+      app.innerHTML = `
+        <div class="layout">
+          <aside class="sidebar" id="sidebar"></aside>
+          <article class="article" id="article"></article>
+          <aside class="toc" id="toc"></aside>
+        </div>`;
+      app.dataset.platform = p.id;
+      $('#sidebar').innerHTML = buildSidebar(p, leaf.id);
+      wireSidebar(p);
+      wireToc();
+    }
 
-    $('#sidebar').innerHTML = buildSidebar(p, leaf.id);
-    wireSidebar(p);
-    const prose = $('#prose');
+    const article = $('#article');
+    article.innerHTML = articleHTML(p, page);
+    const prose = $('#prose', article);
     normalizeContent(prose);
     buildToc(prose, p, page);
     wireContent(prose);
     window.scrollTo(0, 0);
+  }
+
+  function articleHTML(p, page) {
+    return `
+      <nav class="crumb">${(page.breadcrumb || [p.name])
+        .map((c, i, a) => (i === a.length - 1 ? `<span class="here">${esc(c)}</span>` : `<span>${esc(c)}</span>`))
+        .join('<span class="sep">/</span>')}</nav>
+      <span class="labelchip">${icon(p.sections.find((s) => s.id === page.section)?.icon || 'book')} ${esc(
+      page.label || p.name
+    )}</span>
+      <h1 class="page-title">${esc(page.title)}</h1>
+      ${page.subtitle ? `<p class="page-sub">${esc(page.subtitle)}</p>` : ''}
+      <div class="meta-row">
+        ${(page.meta || [])
+          .map((m) =>
+            m.url
+              ? `<a class="chip" href="${esc(m.url)}" target="_blank" rel="noopener">${icon('external')} ${esc(m.text)}</a>`
+              : `<span class="chip k">${esc(m.text)}</span>`
+          )
+          .join('')}
+      </div>
+      <div class="prose" id="prose">${page.html || ''}</div>`;
   }
 
   async function loadPage(platform, id) {
@@ -289,6 +305,23 @@
     return items.some((it) => (it.children ? contains(it.children, id) : it.id === id));
   }
 
+  function setActiveNav(id) {
+    const sb = $('#sidebar');
+    if (!sb) return;
+    let active = null;
+    $$('.navlink', sb).forEach((a) => {
+      const on = a.dataset.id === id;
+      a.classList.toggle('is-active', on);
+      if (on) active = a;
+    });
+    if (!active) return;
+    for (let n = active.closest('.navchildren'); n; n = n.parentElement?.closest('.navchildren')) {
+      n.classList.remove('is-collapsed');
+      n.previousElementSibling?.classList.remove('is-collapsed');
+    }
+    active.closest('.navgroup')?.classList.remove('sec-collapsed');
+  }
+
   function wireSidebar(p) {
     const sb = $('#sidebar');
     sb.addEventListener('click', (e) => {
@@ -306,7 +339,7 @@
         e.preventDefault();
         const id = a.dataset.id;
         history.pushState(null, '', `#/${p.id}/${id}`);
-        renderDoc(p, id);
+        renderDoc(p, id, true);
       }
     });
     const filter = $('#navfilter');
@@ -344,9 +377,9 @@
       h.id = id;
     });
     const toc = $('#toc');
+    $('.layout').classList.toggle('no-toc', !heads.length);
     if (!heads.length) {
       toc.innerHTML = refBox(p, page);
-      $('.layout').classList.add('no-toc');
       return;
     }
     toc.innerHTML =
@@ -360,15 +393,17 @@
         )
         .join('') +
       refBox(p, page);
-    toc.addEventListener('click', (e) => {
-      const a = e.target.closest('a[data-t]');
-      if (a) {
-        e.preventDefault();
-        const el = document.getElementById(a.dataset.t);
-        window.scrollTo({ top: el.offsetTop - 150, behavior: 'smooth' });
-      }
-    });
     scrollSpy(heads);
+  }
+
+  function wireToc() {
+    $('#toc').addEventListener('click', (e) => {
+      const a = e.target.closest('a[data-t]');
+      if (!a) return;
+      e.preventDefault();
+      const el = document.getElementById(a.dataset.t);
+      if (el) window.scrollTo({ top: el.offsetTop - 150, behavior: 'smooth' });
+    });
   }
 
   function refBox(p, page) {
