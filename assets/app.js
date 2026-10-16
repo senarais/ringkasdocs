@@ -28,7 +28,7 @@
       const nav = await (await fetch('data/nav.json')).json();
       state.nav = nav;
       state.platforms = nav.platforms || [];
-      document.title = 'Ringkas — Unified Integration Docs';
+      document.title = 'Ringkas | Unified Integration Docs';
       renderFooter();
       initSearch();
       renderTabbar();
