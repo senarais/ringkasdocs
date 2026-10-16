@@ -122,56 +122,35 @@
   /* --------------------------------------------------------------- home */
   function renderHome() {
     document.documentElement.style.setProperty('--plat', 'var(--yellow)');
-    const p0 = state.platforms[0];
-    const total = state.platforms.reduce((n, p) => n + countLeaves(p.sections.flatMap((s) => s.items)), 0);
+    document.documentElement.style.setProperty('--plat-2', 'var(--cyan)');
+    document.documentElement.style.setProperty('--plat-ink', '#0b0b0b');
     const app = $('#app');
+    delete app.dataset.platform;
     app.innerHTML = `
       <div class="home">
-        <section class="hero">
-          <div>
-            <span class="eyebrow">${icon('bolt')} Unified integration docs</span>
-            <h1>Integrate <em>Shopee</em>, TikTok Shop and Lazada — in one place.</h1>
-            <p class="lede">Ringkas is the full integration reference for all three marketplaces: every guide, endpoint, webhook and error code from the official docs, rewritten and unified in a single app. Switch platforms with the tabs above.</p>
-            <div class="cta">
-              <a class="btn primary" href="#/${p0.id}/${firstPage(p0).id}">${icon('book')} Start with ${esc(p0.name)}</a>
-              <a class="btn" href="#/${state.platforms[1]?.id || p0.id}/${firstPage(state.platforms[1] || p0).id}">${icon('key')} Auth guide</a>
-            </div>
-          </div>
-          <div class="choose">
-            <h3>Choose a platform</h3>
-            ${state.platforms
-              .map((p) => {
-                const leaves = countLeaves(p.sections.flatMap((s) => s.items));
-                return `<a class="opt" href="#/${p.id}/${firstPage(p).id}">
-                  <span class="k" style="background:${p.accent};color:#fff">${icon(p.id)}</span>
-                  <span><span class="t">${esc(p.fullName)}</span>
-                  <span class="d">${esc(p.tagline || TAGLINES[p.id] || '')} ${leaves.toLocaleString()} pages.</span></span>
-                </a>`;
-              })
-              .join('')}
-          </div>
-        </section>
-        <section class="statbar">
+        <header class="choosehead">
+          <span class="eyebrow">${icon('bolt')} Unified integration docs</span>
+          <h1>Choose the platform</h1>
+          <p class="lede">Every guide, endpoint and webhook for Shopee, TikTok Shop and Lazada, unified in one place. Pick a platform below — the tabs above switch between them anytime.</p>
+        </header>
+        <div class="platformgrid">
           ${state.platforms
-            .map(
-              (p) =>
-                `<div class="stat" style="background:${p.accent};color:${dark(p.accent) ? '#fff' : '#0b0b0b'}"><div class="n">${countLeaves(
-                  p.sections.flatMap((s) => s.items)
-                ).toLocaleString()}</div><div class="l">${esc(p.name)} pages</div></div>`
-            )
+            .map((p) => {
+              const leaves = countLeaves(p.sections.flatMap((s) => s.items));
+              return `<a class="pcard" href="#/${p.id}/${firstPage(p).id}">
+                <span class="pcard-k" style="background:${p.accent};color:${dark(p.accent) ? '#ffffff' : '#0b0b0b'}">${icon(p.id)}</span>
+                <span class="pcard-name">${esc(p.name)}</span>
+                <span class="pcard-full">${esc(p.fullName)}</span>
+                <span class="pcard-d">${esc(p.tagline || TAGLINES[p.id] || '')}</span>
+                <span class="pcard-n">${leaves.toLocaleString()} pages</span>
+                <span class="pcard-go">${icon('arrow')} Open docs</span>
+              </a>`;
+            })
             .join('')}
-          <div class="stat"><div class="n">${total.toLocaleString()}</div><div class="l">Total documents</div></div>
-        </section>
-        <section class="homecards">
-          ${card('key', 'Auth, end to end', 'OAuth flows, token lifetimes and refresh loops for each platform, exactly as documented.', 'var(--cyan)')}
-          ${card('code', 'Signing done right', 'HMAC-SHA256 base strings, ordering rules, timestamp units and code samples.', 'var(--lime)')}
-          ${card('webhook', 'Webhooks &amp; push', 'Subscribe, verify signatures and handle retries and idempotency.', 'var(--pink)')}
-        </section>
+        </div>
       </div>`;
     window.scrollTo(0, 0);
   }
-  const card = (ic, t, b, bg) =>
-    `<div class="fcard"><div class="k" style="background:${bg}">${icon(ic)}</div><h3>${t}</h3><p>${b}</p></div>`;
 
   /* --------------------------------------------------------------- doc view */
   async function renderDoc(p, pageId, keepShell = false) {
