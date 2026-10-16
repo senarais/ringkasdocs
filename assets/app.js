@@ -542,7 +542,9 @@
             .map(
               (x) =>
                 `<a class="result" href="#/${x.platform}/${x.id}" data-plat="${x.platform}">
-                   <span class="p" style="background:${x.accent}">${esc(x.name)}</span>
+                   <span class="p" style="background:${x.accent};color:${dark(x.accent) ? '#ffffff' : '#0b0b0b'}">${esc(
+                  x.name
+                )}</span>
                    <span class="t">${esc(x.title)}</span>
                    <span class="s">${esc(x.section)}</span>
                  </a>`
